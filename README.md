@@ -98,8 +98,8 @@ The evaluation provides:
 
 ## Manual Verification Status
 
-- ✅ Lines 1-103: Manually verified
-- ⚠️ Lines 104-541: Machine translated, pending verification
+- ✅ Lines 1-229: Manually verified
+- ⚠️ Lines 230-541: Machine translated, pending verification
 
 ## Example Results
 

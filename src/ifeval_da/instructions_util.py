@@ -51,7 +51,12 @@ DANISH_WORD_LIST = ["hus", "bil", "have", "bord", "stol", "vindue", "dør", "bog
 # ISO 639-1 codes to language names.
 LANGUAGE_CODES = immutabledict.immutabledict({
     "en": "English",
-    "da": "Danish",  # Added Danish language code
+    "da": "Danish",
+    "sv": "Swedish",
+    "no": "Norwegian",
+    "fi": "Finnish",
+    "is": "Icelandic",
+    "fo": "Faroese",
     "es": "Spanish",
     "pt": "Portuguese",
     "ar": "Arabic",
@@ -80,7 +85,6 @@ LANGUAGE_CODES = immutabledict.immutabledict({
     "gu": "Gujarati",
     "pa": "Punjabi",
     "ml": "Malayalam",
-    "fi": "Finnish",
     })
 
 _ALPHABETS = "([A-Za-zÆØÅæøå])"  # Added Danish special characters
