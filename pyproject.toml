@@ -1,0 +1,22 @@
+[project]
+name = "ifeval-da"
+version = "0.1.0"
+description = "Danish translation of the IFEval benchmark for evaluating instruction-following in language models"
+readme = "README.md"
+requires-python = ">=3.10.13"
+dependencies = [
+    "absl-py>=2.3.1",
+    "aiohttp>=3.12.13",
+    "immutabledict>=4.2.1",
+    "langdetect>=1.0.9",
+    "nltk>=3.9.1",
+    "openai>=1.93.0",
+    "tqdm>=4.67.1",
+]
+
+[tool.uv]
+dev-dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.7"]
+build-backend = "uv_build"
