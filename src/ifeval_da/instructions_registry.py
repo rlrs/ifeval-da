@@ -69,9 +69,9 @@ INSTRUCTION_DICT = {
     _CHANGE_CASES
     + "capital_word_frequency": instructions.CapitalWordFrequencyChecker,
     _CHANGE_CASES
-    + "english_capital": instructions.CapitalLettersEnglishChecker,
+    + "capital_letters": instructions.CapitalLettersChecker,
     _CHANGE_CASES
-    + "english_lowercase": instructions.LowercaseLettersEnglishChecker,
+    + "lowercase_letters": instructions.LowercaseLettersChecker,
     _PUNCTUATION + "no_comma": instructions.CommaChecker,
     _STARTEND + "quotation": instructions.QuotationChecker,
 }
@@ -91,8 +91,8 @@ INSTRUCTION_CONFLICTS = {
         _KEYWORD + "frequency",
         _KEYWORD + "forbidden_words",
         _STARTEND + "end_checker",
-        _CHANGE_CASES + "english_capital",
-        _CHANGE_CASES + "english_lowercase",
+        _CHANGE_CASES + "capital_letters",
+        _CHANGE_CASES + "lowercase_letters",
     },
     _LENGTH + "number_sentences": {_LENGTH + "number_sentences"},
     _LENGTH + "number_paragraphs": {
@@ -145,13 +145,13 @@ INSTRUCTION_CONFLICTS = {
     _STARTEND + "end_checker": {_STARTEND + "end_checker"},
     _CHANGE_CASES + "capital_word_frequency": {
         _CHANGE_CASES + "capital_word_frequency",
-        _CHANGE_CASES + "english_lowercase",
-        _CHANGE_CASES + "english_capital",
+        _CHANGE_CASES + "lowercase_letters",
+        _CHANGE_CASES + "capital_letters",
     },
-    _CHANGE_CASES + "english_capital": {_CHANGE_CASES + "english_capital"},
-    _CHANGE_CASES + "english_lowercase": {
-        _CHANGE_CASES + "english_lowercase",
-        _CHANGE_CASES + "english_capital",
+    _CHANGE_CASES + "capital_letters": {_CHANGE_CASES + "capital_letters"},
+    _CHANGE_CASES + "lowercase_letters": {
+        _CHANGE_CASES + "lowercase_letters",
+        _CHANGE_CASES + "capital_letters",
     },
     _PUNCTUATION + "no_comma": {_PUNCTUATION + "no_comma"},
     _STARTEND + "quotation": {_STARTEND + "quotation", _FORMAT + "title"},

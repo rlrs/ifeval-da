@@ -1420,13 +1420,13 @@ class LetterFrequencyChecker(Instruction):
       return letters[self._letter] >= self._frequency
 
 
-class CapitalLettersEnglishChecker(Instruction):
-  """Checks that the response is in english and is in all capital letters."""
+class CapitalLettersChecker(Instruction):
+  """Checks that the response is in all capital letters."""
 
   def build_description(self):
     """Build the instruction description."""
     self._description_pattern = (
-        "Your entire response should be in English, and in all capital letters."
+        "Your entire response should be in all capital letters."
     )
     return self._description_pattern
 
@@ -1438,11 +1438,11 @@ class CapitalLettersEnglishChecker(Instruction):
     return []
 
   def check_following(self, value):
-    """Checks that the response is in English and in all capital letters."""
+    """Checks that the response is in all capital letters."""
     assert isinstance(value, str)
 
     try:
-      return value.isupper()# and langdetect.detect(value) == "en" # TODO: we don't actually prompt for English here...
+      return value.isupper()
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
@@ -1451,13 +1451,13 @@ class CapitalLettersEnglishChecker(Instruction):
       return True
 
 
-class LowercaseLettersEnglishChecker(Instruction):
-  """Checks that the response is in english and is in all lowercase letters."""
+class LowercaseLettersChecker(Instruction):
+  """Checks that the response is in all lowercase letters."""
 
   def build_description(self):
     """Build the instruction description."""
     self._description_pattern = (
-        "Your entire response should be in English, and in all lowercase"
+        "Your entire response should be in all lowercase"
         " letters. No capital letters are allowed."
     )
     return self._description_pattern
@@ -1470,11 +1470,11 @@ class LowercaseLettersEnglishChecker(Instruction):
     return []
 
   def check_following(self, value):
-    """Checks that the response is in English and in all lowercase letters."""
+    """Checks that the response is in all lowercase letters."""
     assert isinstance(value, str)
 
     try:
-      return value.islower()# and langdetect.detect(value) == "en" # TODO: we don't actually prompt for English here...
+      return value.islower()
     except langdetect.LangDetectException as e:
       # Count as instruction is followed.
       logging.error(
