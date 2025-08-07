@@ -23,8 +23,29 @@ uv sync
 
 ## Quick Start
 
+### 1. Launch a Model Server
+
+First, you need a model server running with an OpenAI-compatible API. The easiest way is using vLLM:
+
 ```bash
-# Evaluate a model running locally (auto-detects model)
+# Install vLLM (optional, for GPU inference)
+pip install vllm
+
+# Launch a model server (example with Gemma 3)
+vllm serve google/gemma-3-12b-it
+
+# The server will start at http://localhost:8000
+```
+
+Other options:
+- **llama.cpp**: `llama-server -m model.gguf --port 8000` (for GGUF models on CPU/Metal)
+- **Text Generation Inference**: `docker run --gpus all -p 8000:80 ghcr.io/huggingface/text-generation-inference:latest --model-id model-name`
+- **OpenAI API**: No server needed, just use `--api-base https://api.openai.com/v1`
+
+### 2. Run Evaluation
+
+```bash
+# Evaluate the model (auto-detects from localhost:8000)
 ifeval eval
 
 # Evaluate a specific model
