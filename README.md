@@ -28,8 +28,8 @@ uv sync
 First, you need a model server running with an OpenAI-compatible API. The easiest way is using vLLM:
 
 ```bash
-# Install vLLM (optional, for GPU inference)
-pip install vllm
+# Install vLLM
+uv pip install vllm
 
 # Launch a model server (example with Gemma 3)
 vllm serve google/gemma-3-12b-it
