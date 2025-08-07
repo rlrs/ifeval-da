@@ -159,18 +159,41 @@ def count_words(text):
 
 
 @functools.lru_cache(maxsize=None)
-def _get_sentence_tokenizer():
-  return nltk.data.load("nltk:tokenizers/punkt/danish.pickle")
+def _get_sentence_tokenizer(language="da"):
+  """Get the appropriate sentence tokenizer for the language.
+  
+  Args:
+    language: Language code ('da' for Danish, 'en' for English). Defaults to Danish.
+  """
+  try:
+    if language == "en":
+      return nltk.data.load("nltk:tokenizers/punkt/english.pickle")
+    # Default to Danish
+    return nltk.data.load("nltk:tokenizers/punkt/danish.pickle")
+  except LookupError:
+    # Download punkt tokenizer if not available
+    import nltk
+    nltk.download('punkt', quiet=True)
+    nltk.download('punkt_tab', quiet=True)
+    # Try again after download
+    if language == "en":
+      return nltk.data.load("nltk:tokenizers/punkt/english.pickle")
+    return nltk.data.load("nltk:tokenizers/punkt/danish.pickle")
 
 
-def count_sentences(text):
-  """Count the number of sentences."""
-  tokenizer = _get_sentence_tokenizer()
+def count_sentences(text, language="da"):
+  """Count the number of sentences.
+  
+  Args:
+    text: The text to count sentences in.
+    language: Language code ('da' for Danish, 'en' for English). Defaults to Danish.
+  """
+  tokenizer = _get_sentence_tokenizer(language)
   tokenized_sentences = tokenizer.tokenize(text)
   return len(tokenized_sentences)
 
 
-def generate_keywords(num_keywords, language="en"):
+def generate_keywords(num_keywords, language="da"):
   """Randomly generates a few keywords.
   
   Args:

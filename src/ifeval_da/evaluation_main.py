@@ -16,6 +16,7 @@
 """Binary of evaluating instruction following. See README.md."""
 
 import os
+from datetime import datetime
 
 from absl import app
 from absl import flags
@@ -34,15 +35,21 @@ _INPUT_RESPONSE_DATA = flags.DEFINE_string(
 
 _OUTPUT_DIR = flags.DEFINE_string(
     "output_dir",
-    None,
-    "Output directory for inference and eval results.",
-    required=True,
+    "results",
+    "Output directory for inference and eval results (default: results).",
+    required=False,
 )
 
 
 def main(argv):
   if len(argv) > 1:
     raise app.UsageError("Too many command-line arguments.")
+
+  # Create output directory if it doesn't exist
+  os.makedirs(_OUTPUT_DIR.value, exist_ok=True)
+  
+  # Generate timestamp for output files
+  timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
   inputs = evaluation_lib.read_prompt_list(_INPUT_DATA.value)
   key_to_responses = evaluation_lib.read_key_to_responses_dict(
@@ -62,7 +69,7 @@ def main(argv):
     logging.info("Accuracy: %f", accuracy)
 
     output_file_name = os.path.join(
-        _OUTPUT_DIR.value, output_file_name + ".jsonl"
+        _OUTPUT_DIR.value, f"{output_file_name}_{timestamp}.jsonl"
     )
     evaluation_lib.write_outputs(output_file_name, outputs)
     logging.info("Generated: %s", output_file_name)

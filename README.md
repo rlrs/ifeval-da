@@ -9,7 +9,9 @@ This repository contains:
 - **541 Danish prompts** translated and natively verified from the original IFEval dataset
 - **22 instruction types** that test various aspects of instruction following
 - **Evaluation scripts** for both strict and loose evaluation criteria
-- **OpenAI-compatible API support** for evaluating any model with an API
+- **Simple CLI** for easy evaluation of any OpenAI-compatible model
+
+Note: This is a Danish-specific adaptation. The evaluation code has been modified to properly handle Danish text (sentence splitting, word counting, special characters, etc.) and is not compatible with English evaluation. For English evaluation, please use the [original IFEval repository](https://github.com/google-research/google-research/tree/master/instruction_following_eval).
 
 ## Installation
 
@@ -19,41 +21,80 @@ cd ifeval-da
 uv sync
 ```
 
-## Usage
-
-### Evaluating Pre-Generated Responses
+## Quick Start
 
 ```bash
-uv run python -m ifeval_da.evaluation_main \
-  --input_data=data/translated.jsonl \
-  --input_response_data=data/your_responses.jsonl \
-  --output_dir=data/
+# Evaluate a model running locally (auto-detects model)
+ifeval eval
+
+# Evaluate a specific model
+ifeval eval my-model
+
+# Evaluate OpenAI GPT-4o
+ifeval eval gpt-4o --api-base https://api.openai.com/v1
+
+# View results
+ifeval results --latest
 ```
 
-### Evaluating via OpenAI-Compatible API
+## CLI Usage
+
+The `ifeval` CLI provides a simple interface for all evaluation tasks:
+
+### Evaluate a Model
 
 ```bash
-uv run python scripts/evaluate_openai_api.py \
-  --input_data data/translated.jsonl \
-  --output_file data/responses_model.jsonl \
-  --api_base http://localhost:8000/v1 \
-  --model_name your-model \
-  --max_concurrent 20
+# Basic evaluation (localhost:8000)
+ifeval eval
+
+# Auto-detect model from API
+ifeval eval
+
+# Specify model name
+ifeval eval my-model
+
+# Custom API endpoint
+ifeval eval --api-base https://api.openai.com/v1 --model gpt-4o
+
+# Quick test with 10 samples
+ifeval eval --sample 10
+
+# Adjust concurrency (default: 50)
+ifeval eval --concurrent 100
+
+# Skip evaluation (only generate responses)
+ifeval eval --skip-eval
 ```
 
-### Translating New Data
+### Analyze Existing Responses
 
 ```bash
-uv run python scripts/translate_data.py \
-  input_english.jsonl \
-  output_danish.jsonl \
-  --api_key YOUR_GEMINI_API_KEY \
-  --batch_size 50
+# Evaluate an existing response file
+ifeval analyze data/responses_model.jsonl
+```
+
+### Compare Models
+
+```bash
+# Compare two evaluation results
+ifeval compare results/eval_results_model1_strict_*.jsonl results/eval_results_model2_strict_*.jsonl
+```
+
+### View Results
+
+```bash
+# List all evaluation results
+ifeval results
+
+# Show details of latest result
+ifeval results --latest
 ```
 
 ## Data Format
 
-Input data (`translated.jsonl`):
+### Input Data
+
+**Danish dataset** (`data/danish.jsonl`):
 ```json
 {
   "key": 1000,
@@ -63,7 +104,9 @@ Input data (`translated.jsonl`):
 }
 ```
 
-Response data:
+### Response Data
+
+Generated responses include the model output:
 ```json
 {
   "key": 1000,
@@ -98,27 +141,80 @@ The evaluation provides:
 
 ## Manual Verification Status
 
-- ✅ Lines 1-229: Manually verified
+- ✅ Lines 1-229: Manually verified and corrected
 - ⚠️ Lines 230-541: Machine translated, pending verification
 
 ## Example Results
 
 ```
 STRICT Evaluation:
-prompt-level: 241/541 (44.5%)
-instruction-level: 589/661 (89.1%)
+Overall Accuracy: 44.5% (241/541)
 
-tier-1 instructions:
-change_case: 10/30 (33.3%)
-combination: 3/10 (30.0%)
-detectable_content: 34/40 (85.0%)
-detectable_format: 131/143 (91.6%)
-keywords: 144/170 (84.7%)
-language: 10/10 (100.0%)
-length_constraints: 195/198 (98.5%)
-punctuation: 41/50 (82.0%)
-startend: 21/30 (70.0%)
+Instruction-level breakdown:
+change_case:      33.3% (10/30)
+combination:      30.0% (3/10)
+detectable_content: 85.0% (34/40)
+detectable_format: 91.6% (131/143)
+keywords:         84.7% (144/170)
+language:         100.0% (10/10)
+length_constraints: 98.5% (195/198)
+punctuation:      82.0% (41/50)
+startend:         70.0% (21/30)
 ```
+
+## Python API
+
+For programmatic use:
+
+```python
+from ifeval_da import evaluation_lib_key_based as evaluation_lib
+
+# Load data
+inputs = evaluation_lib.read_prompt_list("data/danish.jsonl")
+responses = evaluation_lib.read_key_to_responses_dict("data/responses.jsonl")
+
+# Run evaluation
+for input_example in inputs:
+    result = evaluation_lib.test_instruction_following_strict(input_example, responses)
+    print(f"Prompt {input_example.key}: {result.follow_all_instructions}")
+```
+
+## Advanced Usage
+
+### Translating New Data
+
+To translate additional prompts to Danish:
+
+```bash
+uv run python scripts/translate_data.py \
+  input_english.jsonl \
+  output_danish.jsonl \
+  --api_key YOUR_GEMINI_API_KEY \
+  --batch_size 50
+```
+
+### Direct Script Usage
+
+For more control, you can use the underlying evaluation module directly:
+
+```bash
+# Evaluation with all options
+uv run python -m ifeval_da.evaluation_main \
+  --input_data=data/danish.jsonl \
+  --input_response_data=data/responses.jsonl \
+  --output_dir=results/
+```
+
+## Default Settings
+
+- **Dataset**: Danish (`data/danish.jsonl`)
+- **API Base**: `http://localhost:8000/v1`
+- **Concurrency**: 50 requests
+- **Temperature**: 0.0
+- **Max Tokens**: 2048
+- **Output Directory**: `results/`
+
+All settings can be overridden via command-line options.
 
 ## Citation
 

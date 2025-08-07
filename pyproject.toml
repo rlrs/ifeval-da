@@ -7,12 +7,20 @@ requires-python = ">=3.10.13"
 dependencies = [
     "absl-py>=2.3.1",
     "aiohttp>=3.12.13",
+    "click>=8.0",
     "immutabledict>=4.2.1",
     "langdetect>=1.0.9",
     "nltk>=3.9.1",
     "openai>=1.93.0",
-    "tqdm>=4.67.1",
+    "rich>=13.0",
+    "tqdm>=4.65",
 ]
+
+[project.optional-dependencies]
+vllm = ["vllm>=0.9"]
+
+[project.scripts]
+ifeval = "ifeval_da.cli:cli"
 
 [tool.uv]
 dev-dependencies = []
