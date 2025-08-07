@@ -98,7 +98,13 @@ ifeval analyze data/responses_model.jsonl
 
 ```bash
 # Compare two evaluation results
-ifeval compare results/eval_results_model1_strict_*.jsonl results/eval_results_model2_strict_*.jsonl
+ifeval compare results/model1_strict.jsonl results/model2_strict.jsonl
+
+# With detailed category breakdown
+ifeval compare results/model1_strict.jsonl results/model2_strict.jsonl --detailed
+
+# Export human-readable comparison report
+ifeval compare results/model1_strict.jsonl results/model2_strict.jsonl --export comparison.md
 ```
 
 ### View Results
@@ -107,8 +113,11 @@ ifeval compare results/eval_results_model1_strict_*.jsonl results/eval_results_m
 # List all evaluation results
 ifeval results
 
-# Show details of latest result
+# Show latest result with details
 ifeval results --latest
+
+# Show detailed breakdown of a specific result
+ifeval results results/eval_results_model_strict_timestamp.jsonl
 ```
 
 ## Data Format

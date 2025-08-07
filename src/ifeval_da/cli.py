@@ -370,7 +370,9 @@ def analyze(response_file):
 @cli.command()
 @click.argument('file1', type=click.Path(exists=True))
 @click.argument('file2', type=click.Path(exists=True))
-def compare(file1, file2):
+@click.option('--detailed', is_flag=True, help='Show detailed category comparison')
+@click.option('--export', type=click.Path(), help='Export detailed comparison to markdown file')
+def compare(file1, file2, detailed, export):
     """Compare two evaluation results."""
     
     def load_eval_results(filepath):
@@ -384,72 +386,256 @@ def compare(file1, file2):
         follow_all = [r.get("follow_all_instructions", False) for r in results]
         accuracy = sum(follow_all) / len(results) if results else 0
         
+        # Calculate category breakdown
+        category_stats = {}
+        for r in results:
+            instruction_ids = r.get("instruction_id_list", [])
+            follow_list = r.get("follow_instruction_list", [])
+            
+            for i, inst_id in enumerate(instruction_ids):
+                if i < len(follow_list):
+                    category = inst_id.split(":")[0] if ":" in inst_id else inst_id
+                    if category not in category_stats:
+                        category_stats[category] = {"correct": 0, "total": 0}
+                    category_stats[category]["total"] += 1
+                    if follow_list[i]:
+                        category_stats[category]["correct"] += 1
+        
         return {
             "accuracy": accuracy,
             "correct": sum(follow_all),
             "total": len(results),
-            "results": results
+            "results": results,
+            "categories": category_stats
         }
     
     # Load both results
     results1 = load_eval_results(file1)
     results2 = load_eval_results(file2)
     
-    # Create comparison table
-    table = Table(title="Model Comparison")
-    table.add_column("File", style="cyan")
+    # Extract model names from filenames
+    model1 = Path(file1).stem.replace("eval_results_", "").rsplit("_", 2)[0]
+    model2 = Path(file2).stem.replace("eval_results_", "").rsplit("_", 2)[0]
+    
+    # Main comparison table
+    console.print(f"\n[bold]Comparing Models:[/bold]")
+    console.print(f"Model 1: {model1}")
+    console.print(f"Model 2: {model2}\n")
+    
+    table = Table(title="Overall Comparison")
+    table.add_column("Model", style="cyan")
     table.add_column("Accuracy", style="magenta")
     table.add_column("Correct", style="green")
     table.add_column("Total", style="yellow")
     
     table.add_row(
-        Path(file1).name,
+        model1[:40],
         f"{results1['accuracy']:.2%}",
         str(results1['correct']),
         str(results1['total'])
     )
     
     table.add_row(
-        Path(file2).name,
+        model2[:40],
         f"{results2['accuracy']:.2%}",
         str(results2['correct']),
         str(results2['total'])
     )
     
+    diff = results2['accuracy'] - results1['accuracy']
+    diff_style = "[green]" if diff > 0 else "[red]" if diff < 0 else ""
     table.add_row(
         "Difference",
-        f"{(results2['accuracy'] - results1['accuracy']):.2%}",
-        str(results2['correct'] - results1['correct']),
+        f"{diff_style}{diff:+.2%}[/]",
+        f"{diff_style}{results2['correct'] - results1['correct']:+d}[/]",
         "-"
     )
     
     console.print(table)
     
-    # Find differences
+    # Category comparison
+    if detailed and results1['categories'] and results2['categories']:
+        console.print("\n[bold]Category Comparison:[/bold]")
+        
+        cat_table = Table()
+        cat_table.add_column("Category", style="cyan", width=20)
+        cat_table.add_column(f"{model1[:20]} Acc", style="yellow", justify="right")
+        cat_table.add_column(f"{model2[:20]} Acc", style="yellow", justify="right")
+        cat_table.add_column("Difference", style="magenta", justify="right")
+        
+        all_categories = set(results1['categories'].keys()) | set(results2['categories'].keys())
+        
+        category_diffs = []
+        for category in all_categories:
+            cat1 = results1['categories'].get(category, {"correct": 0, "total": 0})
+            cat2 = results2['categories'].get(category, {"correct": 0, "total": 0})
+            
+            acc1 = cat1["correct"] / cat1["total"] if cat1["total"] > 0 else 0
+            acc2 = cat2["correct"] / cat2["total"] if cat2["total"] > 0 else 0
+            diff = acc2 - acc1
+            
+            category_diffs.append((category, acc1, acc2, diff))
+        
+        # Sort by absolute difference (biggest changes first)
+        category_diffs.sort(key=lambda x: abs(x[3]), reverse=True)
+        
+        for category, acc1, acc2, diff in category_diffs:
+            diff_str = f"{diff:+.1%}" if diff != 0 else "0.0%"
+            if diff > 0.05:
+                diff_str = f"[green]{diff_str}[/green]"
+            elif diff < -0.05:
+                diff_str = f"[red]{diff_str}[/red]"
+            
+            cat_table.add_row(
+                category,
+                f"{acc1:.1%}",
+                f"{acc2:.1%}",
+                diff_str
+            )
+        
+        console.print(cat_table)
+    
+    # Analyze instruction-level changes
     if len(results1['results']) == len(results2['results']):
-        improved = []
-        regressed = []
+        improved_prompts = 0
+        regressed_prompts = 0
+        instruction_improvements = {}
+        instruction_regressions = {}
         
         for r1, r2 in zip(results1['results'], results2['results']):
-            key = r1.get('key', r1.get('prompt', ''))[:50]
-            if not r1.get('follow_all_instructions') and r2.get('follow_all_instructions'):
-                improved.append(key)
-            elif r1.get('follow_all_instructions') and not r2.get('follow_all_instructions'):
-                regressed.append(key)
+            prompt_improved = not r1.get('follow_all_instructions') and r2.get('follow_all_instructions')
+            prompt_regressed = r1.get('follow_all_instructions') and not r2.get('follow_all_instructions')
+            
+            if prompt_improved:
+                improved_prompts += 1
+            elif prompt_regressed:
+                regressed_prompts += 1
+            
+            # Track which specific instructions changed
+            inst_ids = r1.get("instruction_id_list", [])
+            follow1 = r1.get("follow_instruction_list", [])
+            follow2 = r2.get("follow_instruction_list", [])
+            
+            for i, inst_id in enumerate(inst_ids):
+                if i < len(follow1) and i < len(follow2):
+                    if not follow1[i] and follow2[i]:
+                        # This instruction improved
+                        instruction_improvements[inst_id] = instruction_improvements.get(inst_id, 0) + 1
+                    elif follow1[i] and not follow2[i]:
+                        # This instruction regressed
+                        instruction_regressions[inst_id] = instruction_regressions.get(inst_id, 0) + 1
         
-        if improved:
-            console.print(f"\n[green]Improved ({len(improved)} prompts):[/green]")
-            for key in improved[:5]:
-                console.print(f"  • {key}...")
-            if len(improved) > 5:
-                console.print(f"  ... and {len(improved) - 5} more")
+        # Show net change summary
+        net_change = improved_prompts - regressed_prompts
+        console.print(f"\n[bold]Prompt-level Changes:[/bold]")
         
-        if regressed:
-            console.print(f"\n[red]Regressed ({len(regressed)} prompts):[/red]")
-            for key in regressed[:5]:
-                console.print(f"  • {key}...")
-            if len(regressed) > 5:
-                console.print(f"  ... and {len(regressed) - 5} more")
+        change_style = "[green]" if net_change > 0 else "[red]" if net_change < 0 else "[yellow]"
+        console.print(f"  Improved: [green]+{improved_prompts}[/green]")
+        console.print(f"  Regressed: [red]-{regressed_prompts}[/red]")
+        console.print(f"  Net change: {change_style}{net_change:+d}[/]")
+        
+        # Show specific instruction types only if detailed (since categories are already shown above)
+        if detailed and (instruction_improvements or instruction_regressions):
+            # Only show if there are specific instruction subtypes (with colons)
+            specific_changes = []
+            for inst_id, count in instruction_improvements.items():
+                if ":" in inst_id:  # Only specific subtypes
+                    net = count - instruction_regressions.get(inst_id, 0)
+                    if net != 0:
+                        specific_changes.append((inst_id, net))
+            for inst_id, count in instruction_regressions.items():
+                if ":" in inst_id and inst_id not in instruction_improvements:
+                    specific_changes.append((inst_id, -count))
+            
+            if specific_changes:
+                specific_changes.sort(key=lambda x: abs(x[1]), reverse=True)
+                console.print(f"\n[bold]Specific Instruction Changes:[/bold]")
+                console.print("Most significant changes by specific instruction type:")
+                
+                # Show top 6 specific changes
+                for inst_id, change in specific_changes[:6]:
+                    if change > 0:
+                        console.print(f"  [green]↑ {inst_id}: +{change}[/green]")
+                    else:
+                        console.print(f"  [red]↓ {inst_id}: {change}[/red]")
+                
+                if len(specific_changes) > 6:
+                    console.print(f"  [dim]... and {len(specific_changes) - 6} more specific types[/dim]")
+    
+    if not detailed:
+        console.print("\n[dim]Use --detailed to see category-level comparison[/dim]")
+    
+    # Export detailed comparison if requested
+    if export and len(results1['results']) == len(results2['results']):
+        console.print(f"\n[yellow]Exporting detailed comparison to {export}...[/yellow]")
+        
+        with open(export, 'w', encoding='utf-8') as f:
+            f.write(f"# Model Comparison Report\n\n")
+            f.write(f"**Model 1:** {model1}\n")
+            f.write(f"**Model 2:** {model2}\n")
+            f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
+            
+            f.write(f"## Summary\n\n")
+            f.write(f"- Model 1 Accuracy: {results1['accuracy']:.2%} ({results1['correct']}/{results1['total']})\n")
+            f.write(f"- Model 2 Accuracy: {results2['accuracy']:.2%} ({results2['correct']}/{results2['total']})\n")
+            f.write(f"- Difference: {diff:+.2%}\n\n")
+            
+            # Write improved prompts with details
+            improved_details = []
+            regressed_details = []
+            
+            for r1, r2 in zip(results1['results'], results2['results']):
+                prompt_text = r1.get('prompt', '')
+                if not r1.get('follow_all_instructions') and r2.get('follow_all_instructions'):
+                    # Improved
+                    improved_details.append({
+                        'prompt': prompt_text,
+                        'instructions': r1.get('instruction_id_list', []),
+                        'model1_failed': [inst for i, inst in enumerate(r1.get('instruction_id_list', [])) 
+                                        if i < len(r1.get('follow_instruction_list', [])) and not r1['follow_instruction_list'][i]],
+                        'response1': r1.get('response', ''),
+                        'response2': r2.get('response', '')
+                    })
+                elif r1.get('follow_all_instructions') and not r2.get('follow_all_instructions'):
+                    # Regressed
+                    regressed_details.append({
+                        'prompt': prompt_text,
+                        'instructions': r2.get('instruction_id_list', []),
+                        'model2_failed': [inst for i, inst in enumerate(r2.get('instruction_id_list', [])) 
+                                        if i < len(r2.get('follow_instruction_list', [])) and not r2['follow_instruction_list'][i]],
+                        'response1': r1.get('response', ''),
+                        'response2': r2.get('response', '')
+                    })
+            
+            # Write improvements
+            if improved_details:
+                f.write(f"## Improved Prompts ({len(improved_details)})\n\n")
+                for i, item in enumerate(improved_details[:10], 1):  # Show first 10
+                    f.write(f"### {i}. Improvement\n\n")
+                    f.write(f"**Prompt:** {item['prompt'][:200]}{'...' if len(item['prompt']) > 200 else ''}\n\n")
+                    f.write(f"**Instructions that Model 1 failed:** {', '.join(item['model1_failed'])}\n\n")
+                    f.write(f"**Model 1 Response:**\n```\n{item['response1'][:500]}{'...' if len(item['response1']) > 500 else ''}\n```\n\n")
+                    f.write(f"**Model 2 Response (Correct):**\n```\n{item['response2'][:500]}{'...' if len(item['response2']) > 500 else ''}\n```\n\n")
+                    f.write("---\n\n")
+                
+                if len(improved_details) > 10:
+                    f.write(f"*... and {len(improved_details) - 10} more improvements*\n\n")
+            
+            # Write regressions
+            if regressed_details:
+                f.write(f"## Regressed Prompts ({len(regressed_details)})\n\n")
+                for i, item in enumerate(regressed_details[:10], 1):  # Show first 10
+                    f.write(f"### {i}. Regression\n\n")
+                    f.write(f"**Prompt:** {item['prompt'][:200]}{'...' if len(item['prompt']) > 200 else ''}\n\n")
+                    f.write(f"**Instructions that Model 2 failed:** {', '.join(item['model2_failed'])}\n\n")
+                    f.write(f"**Model 1 Response (Correct):**\n```\n{item['response1'][:500]}{'...' if len(item['response1']) > 500 else ''}\n```\n\n")
+                    f.write(f"**Model 2 Response:**\n```\n{item['response2'][:500]}{'...' if len(item['response2']) > 500 else ''}\n```\n\n")
+                    f.write("---\n\n")
+                
+                if len(regressed_details) > 10:
+                    f.write(f"*... and {len(regressed_details) - 10} more regressions*\n\n")
+        
+        console.print(f"[green]Detailed comparison exported to {export}[/green]")
 
 
 @cli.command()
